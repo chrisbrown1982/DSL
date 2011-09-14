@@ -1,0 +1,12 @@
+data T = C String String Int | C2 Int ;
+
+g x = Con a b (Foo a b);
+
+f x y = x (a (b x) c);
+
+z = z ;
+
+
+bob = "hello" ;
+
+one = 1;
