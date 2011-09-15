@@ -1,0 +1,16 @@
+data T = C1 | C2 Int;
+
+f x y = (f x y);
+
+g a b = a;
+
+bob = "hello";
+
+
+c = C1;
+
+k (C2 a b) = bob;
+
+
+
+goo (C2 (C1 a)) = a;
