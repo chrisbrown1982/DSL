@@ -29,6 +29,12 @@ data Literal = Str String
 
 data Defn = Fun Name [ Pat ] Expr
           | Dat TyName [ Constr ]
+          | TypeSig Name Typ
+    deriving Show
+
+data Typ = TyApp Typ Typ
+         | TyArrow [Typ]
+         | TyName TyName
     deriving Show
 
 data Pat = PatIdent String SourcePos SourcePos
@@ -39,6 +45,7 @@ data Name = DefIdent String SourcePos SourcePos
     deriving Show
 
 data TyName = TyIdent String SourcePos SourcePos
+            | TyConstr String SourcePos SourcePos
     deriving Show
 
 data Constr = ConName String SourcePos SourcePos [ String ]
@@ -66,6 +73,8 @@ languageDef =
              ,  Token.reservedOpNames   = [ "=" 
                                           , "("
                                           , ")"
+                                          , "Ty"
+                                          , "->"
                                           ]
             }
 
@@ -87,8 +96,56 @@ charLiteral = Token.charLiteral lexer
 whileParser :: Parser Prog
 whileParser = do 
     i <- many datDefinition 
-    l <- many funDefinition
+    l <- many definition
     return (i++l)
+
+
+definition :: Parser Defn
+definition = typDefinition <|> funDefinition
+
+
+typDefinition :: Parser Defn
+typDefinition = do
+                    pos <- getPosition;
+                    reservedOp "Ty";
+                    ident <- identifier;
+                    typ <- types
+                    reservedOp ";"
+                    return (TypeSig (DefIdent ident pos pos) typ)
+
+
+{- data Typ = TyApp Typ Typ
+         | TyArrow Typ Typ
+         | TyName TyName
+         | TyCon TyName
+    deriving Show
+
+data TyName = TyIdent String SourcePos SourcePos
+            | TyConstr String SourcePos SourcePos
+    deriving Show
+-}
+
+types :: Parser Typ
+types = tyarrow
+    <|> tyapp
+    <|> tycon
+    <|> tyname
+
+
+tyapp :: Parser Typ
+tyapp = TyApp <$> (reservedOp "(" >> (tycon <|> tyname)) <*> ((tycon <|> tyname) =>> reservedOp ")")
+
+tyarrow :: Parser Typ
+tyarrow = TyArrow <$> sepBy (tycon <|> tyname <|> tyapp) (reservedOp "->") 
+
+tyname :: Parser Typ
+tyname = do pos <- getPosition
+            ident <- identifier
+            return (TyName (TyIdent ident pos pos))
+
+tycon :: Parser Typ
+tycon = try (getPosition >>= \s -> identifier >>= \i -> when (isLower $ head i) (fail "Constructor") >> return (TyName (TyConstr i s s)))
+
 
 funDefinition :: Parser Defn
 funDefinition = Fun <$> funName <*> many pat <*> (reservedOp "=" >> applyCon <$> expression =>> semi)
@@ -211,6 +268,7 @@ data Literal = Str String
 
 data Defn = Fun Name [ Pat ] Expr
           | Dat TyName [ Constr ]
+          | TypeSig Name Typ
     deriving Show
 
 data Pat = PatIdent String SourcePos SourcePos
@@ -226,6 +284,17 @@ data TyName = TyIdent String SourcePos SourcePos
 data Constr = ConName String SourcePos SourcePos [ String ]
     deriving Show
 
+data Typ = TyApp Typ Typ
+         | TyArrow Typ Typ
+         | TyName TyName
+         | TyCon TyName
+    deriving Show
+
+data TyName = TyIdent String SourcePos SourcePos
+            | TyConstr String SourcePos SourcePos
+    deriving Show
+
+
 -}
 
 type LocalEnv = [ (String, SourcePos) ]
@@ -240,6 +309,11 @@ traverse genv lenv (d:ds) = (genv2, lenv2, def:defs)
                (genv2, lenv2, defs) = traverse genv1 lenv1 ds 
 
 traverseDefn :: GlobalEnv -> LocalEnv -> Defn -> (GlobalEnv, LocalEnv, Defn)
+traverseDefn genv lenv a@(TypeSig n t) 
+  = (genv, lenv, a)
+
+
+
 traverseDefn genv lenv (Dat n cons) = dat
     where
         dat = (genv3, [], Dat n cons)

@@ -1,16 +1,20 @@
 data T = C1 | C2 Int;
 
-f x y = (f x y);
+-- f x y = (f x y);
 
-g a b = a;
+-- g a b = a;
 
+Ty bob a;
 bob = "hello";
 
 
+Ty c Int; 
 c = C1;
 
+
+Ty k a -> a -> C1;
 k (C2 a b) = bob;
 
 
-
+Ty goo (m a);
 goo (C2 (C1 a)) = a;
